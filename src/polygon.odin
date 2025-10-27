@@ -2,6 +2,7 @@ package sat
 
 import "core:fmt"
 import "core:log"
+import "core:math"
 import "core:math/linalg"
 import rl "vendor:raylib"
 // make -> delete
@@ -41,10 +42,22 @@ draw_poligon :: proc(
 	}
 }
 
-draw_polygon_instance :: proc(entity: PolygonEntity) {
+draw_polygon_instance :: proc(entity: PolygonEntity, color: rl.Color = rl.WHITE) {
 	rotate := matrix3_rotate_f32(linalg.to_radians(f32(entity.rotation)))
 	translate := matrix3_translate_f32(entity.position)
 	scale := matrix3_scale_f32(entity.scale)
 
-	draw_poligon(entity.points, rl.WHITE, transform = translate * rotate * scale)
+	draw_poligon(entity.points, color, transform = translate * rotate * scale)
+}
+
+create_ngon :: proc(num_vertices: int, radius: f32) -> Polygon {
+	ngon := make([]Point, num_vertices)
+	f_theta := math.PI * 2.0 / f32(num_vertices)
+
+	for i in 0 ..< num_vertices {
+		fi := f32(i)
+		ngon[i] = {math.cos(f_theta * fi), math.sin(f_theta * fi)} * radius
+	}
+
+	return ngon
 }

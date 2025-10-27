@@ -10,6 +10,7 @@ MOVE_SPEED :: 100
 SCALE_SPEED :: 1
 ROTATE_SPEED :: 50
 
+
 main :: proc() {
 	context.logger = log.create_console_logger()
 
@@ -20,27 +21,52 @@ main :: proc() {
 	rl.InitWindow(SCREEN_WIDTH.x, SCREEN_WIDTH.y, "SAT test")
 	defer rl.CloseWindow()
 
-
-	triangle: PolygonEntity = {
-		points   = {{0, -100}, {-100, 100}, {100, 100}},
+	pentagon_points := create_ngon(5, 100)
+	defer delete(pentagon_points)
+	pentangon: PolygonEntity = {
+		position = {100, 100},
 		scale    = {1, 1},
-		position = {0, 0},
+		points   = pentagon_points,
+		rotation = 0,
 	}
+
+	triangle_points := create_ngon(3, 80)
+	defer delete(triangle_points)
+	triangle: PolygonEntity = {
+		position = {400, 400},
+		scale    = {1, 1},
+		points   = triangle_points,
+		rotation = 0,
+	}
+
+	square_points := create_ngon(4, 90)
+	defer delete(square_points)
+	square: PolygonEntity = {
+		position = {600, 100},
+		scale    = {1, 1},
+		points   = square_points,
+		rotation = 0,
+	}
+
+	shapes: []PolygonEntity = {pentangon, triangle, square}
 
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
 
-		triangle.position += linalg.normalize0(get_input_movement()) * dt * MOVE_SPEED
-		triangle.scale += get_input_scale() * dt * SCALE_SPEED
-		triangle.rotation += get_input_rotate() * dt * ROTATE_SPEED
+		first_shape := &shapes[0]
+		first_shape.position += linalg.normalize0(get_input_movement()) * dt * MOVE_SPEED
+		first_shape.scale += get_input_scale() * dt * SCALE_SPEED
+		first_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
 
 		{
 			rl.BeginDrawing()
 			defer rl.EndDrawing()
 			rl.ClearBackground(rl.BLACK)
 
-			draw_polygon_instance(triangle)
+			for &shape in shapes {
+				draw_polygon_instance(shape, rl.WHITE)
+			}
 		}
 	}
 
