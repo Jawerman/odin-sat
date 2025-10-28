@@ -23,7 +23,7 @@ main :: proc() {
 
 	pentagon_points := create_ngon(5, 100)
 	defer delete(pentagon_points)
-	pentangon: PolygonEntity = {
+	pentangon: Shape_Instance = {
 		position = {100, 100},
 		scale    = {1, 1},
 		points   = pentagon_points,
@@ -32,7 +32,7 @@ main :: proc() {
 
 	triangle_points := create_ngon(3, 80)
 	defer delete(triangle_points)
-	triangle: PolygonEntity = {
+	triangle: Shape_Instance = {
 		position = {400, 400},
 		scale    = {1, 1},
 		points   = triangle_points,
@@ -41,17 +41,18 @@ main :: proc() {
 
 	square_points := create_ngon(4, 90)
 	defer delete(square_points)
-	square: PolygonEntity = {
+	square: Shape_Instance = {
 		position = {600, 100},
 		scale    = {1, 1},
 		points   = square_points,
 		rotation = 0,
 	}
 
-	shapes: []PolygonEntity = {pentangon, triangle, square}
+	shapes: []Shape_Instance = {pentangon, triangle, square}
 
 
 	for !rl.WindowShouldClose() {
+		free_all(context.temp_allocator)
 		dt := rl.GetFrameTime()
 
 		first_shape := &shapes[0]
@@ -59,13 +60,25 @@ main :: proc() {
 		first_shape.scale += get_input_scale() * dt * SCALE_SPEED
 		first_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
 
+
 		{
 			rl.BeginDrawing()
 			defer rl.EndDrawing()
 			rl.ClearBackground(rl.BLACK)
 
-			for &shape in shapes {
-				draw_polygon_instance(shape, rl.WHITE)
+			for &shape, index in shapes {
+				transformed_shape_points := make(
+					[]Point,
+					len(shape.points),
+					context.temp_allocator,
+				)
+				apply_transform_to_shape(
+					shape.points,
+					transformed_shape_points,
+					get_transform_matrix(shape.transform_description),
+				)
+
+				draw_shape_points(transformed_shape_points, rl.WHITE)
 			}
 		}
 	}

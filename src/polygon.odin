@@ -5,31 +5,34 @@ import "core:log"
 import "core:math"
 import "core:math/linalg"
 import rl "vendor:raylib"
-// make -> delete
-// new -> free
+
 
 Point :: [2]f32
 
-Polygon :: []Point
+Shape :: []Point
 
 IDENTITY_MATRIX: matrix[2, 2]f32 = {0, 0, 0, 0}
 
-PolygonEntity :: struct {
-	points:   Polygon,
+Transform_Description :: struct {
 	position: [2]f32,
 	rotation: f32,
 	scale:    [2]f32,
 }
 
-draw_poligon :: proc(
-	poly: Polygon,
+Shape_Instance :: struct {
+	points:                      Shape,
+	using transform_description: Transform_Description,
+}
+
+draw_shape :: proc(
+	shape: Shape,
 	color: rl.Color,
 	transform: matrix[3, 3]f32 = linalg.MATRIX3F32_IDENTITY,
 ) {
-	if len(poly) == 0 do return
+	if len(shape) == 0 do return
 
-	for &point, index in poly {
-		end_point := index > 0 ? poly[index - 1] : poly[index + len(poly) - 1]
+	for &point, index in shape {
+		end_point := &shape[(index + 1) % len(shape)]
 
 		transformed_point := linalg.matrix_mul_vector(transform, [3]f32{point.x, point.y, 1})
 		transformed_end_point := linalg.matrix_mul_vector(
@@ -42,15 +45,81 @@ draw_poligon :: proc(
 	}
 }
 
-draw_polygon_instance :: proc(entity: PolygonEntity, color: rl.Color = rl.WHITE) {
-	rotate := matrix3_rotate_f32(linalg.to_radians(f32(entity.rotation)))
-	translate := matrix3_translate_f32(entity.position)
-	scale := matrix3_scale_f32(entity.scale)
+draw_shape_points :: proc(shape: Shape, color: rl.Color) {
+	if len(shape) == 0 do return
 
-	draw_poligon(entity.points, color, transform = translate * rotate * scale)
+	for &point, index in shape {
+		end_point := shape[(index + 1) % len(shape)]
+
+		rl.DrawCircleV(point, 3, color)
+		rl.DrawLineV(point, end_point, color)
+	}
 }
 
-create_ngon :: proc(num_vertices: int, radius: f32) -> Polygon {
+test_shape_overlap_sat :: proc(p1: Shape, p2: Shape) -> bool {
+	p1 := p1
+	p2 := p2
+
+	for shape_index in 0 ..= 1 {
+		shape1 := shape_index == 0 ? &p1 : &p2
+		shape2 := shape_index == 0 ? &p2 : &p1
+
+		for &point_a, index in shape1 {
+			point_b := &p1[(index + 1) % len(shape1)]
+			vector := point_b^ - point_a
+			axis: [2]f32 = {-vector.y, vector.x}
+
+			min_r1, max_r1 := max(f32), min(f32)
+			for &projected_point in shape1 {
+				projection := linalg.vector_dot(projected_point, axis)
+				min_r1 = min(min_r1, projection)
+				max_r1 = max(max_r1, projection)
+			}
+
+			min_r2, max_r2 := max(f32), min(f32)
+			for &projected_point in shape2 {
+				projection := linalg.vector_dot(projected_point, axis)
+				min_r2 = min(min_r2, projection)
+				max_r2 = max(max_r2, projection)
+			}
+
+			if min(max_r1, max_r2) < max(min_r1, min_r2) do return false
+		}
+	}
+
+	return true
+}
+
+
+get_transform_matrix :: proc(transform_description: Transform_Description) -> linalg.Matrix3f32 {
+	rotate := matrix3_rotate_f32(linalg.to_radians(f32(transform_description.rotation)))
+	translate := matrix3_translate_f32(transform_description.position)
+	scale := matrix3_scale_f32(transform_description.scale)
+
+	return translate * rotate * scale
+}
+
+apply_transform_to_shape :: proc(
+	shape: Shape,
+	transformed_shape: Shape,
+	transform: linalg.Matrix3f32,
+) {
+	for &point, index in shape {
+		transformed_shape[index] =
+			linalg.matrix_mul_vector(transform, [3]f32{point.x, point.y, 1}).xy
+	}
+}
+
+draw_shape_instance :: proc(entity: Shape_Instance, color: rl.Color = rl.WHITE) {
+	draw_shape(
+		entity.points,
+		color,
+		transform = get_transform_matrix(entity.transform_description),
+	)
+}
+
+
+create_ngon :: proc(num_vertices: int, radius: f32) -> Shape {
 	ngon := make([]Point, num_vertices)
 	f_theta := math.PI * 2.0 / f32(num_vertices)
 
