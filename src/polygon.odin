@@ -106,21 +106,14 @@ test_shapes_overlap_sat_resolve :: proc(
 		edge := point_b - point_a
 
 		axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
+		min_depth, overlap := get_shapes_proyection_separation(s1, s2, axis)
+		if !overlap do return
 
-		min_s1, max_s1 := get_projection_min_max(s1, axis)
-		min_s2, max_s2 := get_projection_min_max(s2, axis)
-
-		depth_side1 := max_s1 - min_s2
-		depth_side2 := min_s1 - max_s2
-
-		if depth_side1 * depth_side2 >= 0 do return
-
-		min_depth := abs(depth_side1) < abs(depth_side2) ? depth_side1 : depth_side2
 		min_depth_abs := abs(min_depth)
 
 		if min_depth_abs < depth {
 			depth = min_depth_abs
-			normal = min_depth < 0 ? axis : -axis
+			normal = min_depth < 0 ? -axis : axis
 		}
 	}
 
@@ -129,27 +122,40 @@ test_shapes_overlap_sat_resolve :: proc(
 		edge := point_b - point_a
 
 		axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
+		min_depth, overlap := get_shapes_proyection_separation(s1, s2, axis)
+		if !overlap do return
 
-		min_s1, max_s1 := get_projection_min_max(s1, axis)
-		min_s2, max_s2 := get_projection_min_max(s2, axis)
-
-		depth_side1 := max_s1 - min_s2
-		depth_side2 := min_s1 - max_s2
-
-		if depth_side1 * depth_side2 >= 0 do return
-
-		min_depth := abs(depth_side1) < abs(depth_side2) ? depth_side1 : depth_side2
 		min_depth_abs := abs(min_depth)
 
 		if min_depth_abs < depth {
 			depth = min_depth_abs
-			normal = min_depth < 0 ? axis : -axis
+			normal = min_depth < 0 ? -axis : axis
 		}
 	}
 
 	return normal, depth, true
 }
 
+get_shapes_proyection_separation :: proc(
+	s1: Shape,
+	s2: Shape,
+	axis: [2]f32,
+) -> (
+	depth: f32,
+	overlap: bool,
+) {
+	overlap = false
+
+	min_s1, max_s1 := get_projection_min_max(s1, axis)
+	min_s2, max_s2 := get_projection_min_max(s2, axis)
+
+	depth_side1 := max_s1 - min_s2
+	depth_side2 := min_s1 - max_s2
+
+	if depth_side1 * depth_side2 >= 0 do return
+
+	return abs(depth_side1) < abs(depth_side2) ? depth_side1 : depth_side2, true
+}
 
 get_projection_min_max :: proc(shape: Shape, axis: [2]f32) -> (min_p: f32, max_p: f32) {
 	min_p, max_p = max(f32), min(f32)

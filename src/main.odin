@@ -6,7 +6,7 @@ import rl "vendor:raylib"
 
 SCREEN_WIDTH :: [2]i32{800, 600}
 
-MOVE_SPEED :: 100
+MOVE_SPEED :: 200
 SCALE_SPEED :: 1
 ROTATE_SPEED :: 50
 
@@ -85,9 +85,9 @@ main :: proc() {
 				normal, depth, collide := test_shapes_overlap_sat_resolve(shape, other_shape)
 				if collide {
 					displacement := normal * depth
-					shapes[other_index].position -= displacement
+					shapes[other_index].position += displacement
 					for &point in other_shape {
-						point -= displacement
+						point += displacement
 					}
 				}
 			}
