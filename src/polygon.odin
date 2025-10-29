@@ -56,7 +56,7 @@ draw_shape_points :: proc(shape: Shape, color: rl.Color) {
 	}
 }
 
-test_shape_overlap_sat :: proc(p1: Shape, p2: Shape) -> bool {
+test_shapes_overlap_sat :: proc(p1: Shape, p2: Shape) -> bool {
 	p1 := p1
 	p2 := p2
 
@@ -65,8 +65,8 @@ test_shape_overlap_sat :: proc(p1: Shape, p2: Shape) -> bool {
 		shape2 := shape_index == 0 ? &p2 : &p1
 
 		for &point_a, index in shape1 {
-			point_b := &p1[(index + 1) % len(shape1)]
-			vector := point_b^ - point_a
+			point_b := shape1[(index + 1) % len(shape1)]
+			vector := point_b - point_a
 			axis: [2]f32 = {-vector.y, vector.x}
 
 			min_r1, max_r1 := max(f32), min(f32)
@@ -83,13 +83,83 @@ test_shape_overlap_sat :: proc(p1: Shape, p2: Shape) -> bool {
 				max_r2 = max(max_r2, projection)
 			}
 
-			if min(max_r1, max_r2) < max(min_r1, min_r2) do return false
+			if min_r1 >= max_r2 || max_r1 < min_r2 do return false
 		}
 	}
 
 	return true
 }
 
+test_shapes_overlap_sat_resolve :: proc(
+	s1: Shape,
+	s2: Shape,
+) -> (
+	normal: [2]f32,
+	depth: f32,
+	overlap: bool,
+) {
+	overlap = false
+	depth = max(f32)
+
+	for &point_a, index in s1 {
+		point_b := s1[(index + 1) % len(s1)]
+		edge := point_b - point_a
+
+		axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
+
+		min_s1, max_s1 := get_projection_min_max(s1, axis)
+		min_s2, max_s2 := get_projection_min_max(s2, axis)
+
+		depth_side1 := max_s1 - min_s2
+		depth_side2 := min_s1 - max_s2
+
+		if depth_side1 * depth_side2 >= 0 do return
+
+		min_depth := abs(depth_side1) < abs(depth_side2) ? depth_side1 : depth_side2
+		min_depth_abs := abs(min_depth)
+
+		if min_depth_abs < depth {
+			depth = min_depth_abs
+			normal = min_depth < 0 ? axis : -axis
+		}
+	}
+
+	for &point_a, index in s2 {
+		point_b := s2[(index + 1) % len(s2)]
+		edge := point_b - point_a
+
+		axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
+
+		min_s1, max_s1 := get_projection_min_max(s1, axis)
+		min_s2, max_s2 := get_projection_min_max(s2, axis)
+
+		depth_side1 := max_s1 - min_s2
+		depth_side2 := min_s1 - max_s2
+
+		if depth_side1 * depth_side2 >= 0 do return
+
+		min_depth := abs(depth_side1) < abs(depth_side2) ? depth_side1 : depth_side2
+		min_depth_abs := abs(min_depth)
+
+		if min_depth_abs < depth {
+			depth = min_depth_abs
+			normal = min_depth < 0 ? axis : -axis
+		}
+	}
+
+	return normal, depth, true
+}
+
+
+get_projection_min_max :: proc(shape: Shape, axis: [2]f32) -> (min_p: f32, max_p: f32) {
+	min_p, max_p = max(f32), min(f32)
+	for &projected_point in shape {
+		projection := linalg.vector_dot(projected_point, axis)
+		min_p = min(min_p, projection)
+		max_p = max(max_p, projection)
+	}
+	return min_p, max_p
+}
 
 get_transform_matrix :: proc(transform_description: Transform_Description) -> linalg.Matrix3f32 {
 	rotate := matrix3_rotate_f32(linalg.to_radians(f32(transform_description.rotation)))

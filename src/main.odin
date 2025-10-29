@@ -23,7 +23,7 @@ main :: proc() {
 
 	pentagon_points := create_ngon(5, 100)
 	defer delete(pentagon_points)
-	pentangon: Shape_Instance = {
+	pentagon: Shape_Instance = {
 		position = {100, 100},
 		scale    = {1, 1},
 		points   = pentagon_points,
@@ -48,7 +48,17 @@ main :: proc() {
 		rotation = 0,
 	}
 
-	shapes: []Shape_Instance = {pentangon, triangle, square}
+	shapes: []Shape_Instance = {pentagon, triangle, square}
+	transformed_shapes: []Shape = {
+		make([]Point, len(pentagon.points)),
+		make([]Point, len(triangle.points)),
+		make([]Point, len(square.points)),
+	}
+	defer {
+		for &shape in transformed_shapes {
+			delete(shape)
+		}
+	}
 
 
 	for !rl.WindowShouldClose() {
@@ -60,25 +70,47 @@ main :: proc() {
 		first_shape.scale += get_input_scale() * dt * SCALE_SPEED
 		first_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
 
+		for &shape, index in shapes {
+			apply_transform_to_shape(
+				shape.points,
+				transformed_shapes[index],
+				get_transform_matrix(shape.transform_description),
+			)
+		}
+
+		for &shape, index in transformed_shapes {
+			for &other_shape, other_index in transformed_shapes {
+				if index == other_index do continue
+
+				normal, depth, collide := test_shapes_overlap_sat_resolve(shape, other_shape)
+				if collide {
+					displacement := normal * depth
+					shapes[other_index].position -= displacement
+					for &point in other_shape {
+						point -= displacement
+					}
+				}
+			}
+		}
 
 		{
 			rl.BeginDrawing()
 			defer rl.EndDrawing()
 			rl.ClearBackground(rl.BLACK)
 
-			for &shape, index in shapes {
-				transformed_shape_points := make(
-					[]Point,
-					len(shape.points),
-					context.temp_allocator,
-				)
-				apply_transform_to_shape(
-					shape.points,
-					transformed_shape_points,
-					get_transform_matrix(shape.transform_description),
-				)
+			for &shape, index in transformed_shapes {
+				is_colliding := false
 
-				draw_shape_points(transformed_shape_points, rl.WHITE)
+				for &other_shape, other_index in transformed_shapes {
+					if index == other_index do continue
+					if test_shapes_overlap_sat(shape, other_shape) {
+						is_colliding = true
+						break
+					}
+				}
+
+				color := is_colliding ? rl.RED : rl.WHITE
+				draw_shape_points(shape, color)
 			}
 		}
 	}
