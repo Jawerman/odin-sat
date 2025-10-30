@@ -195,7 +195,7 @@ draw_shape_instance :: proc(entity: Shape_Instance, color: rl.Color = rl.WHITE) 
 }
 
 
-create_ngon :: proc(num_vertices: int, radius: f32) -> Shape {
+create_regular_ngon :: proc(num_vertices: int, radius: f32) -> Shape {
 	ngon := make([]Point, num_vertices)
 	f_theta := math.PI * 2.0 / f32(num_vertices)
 

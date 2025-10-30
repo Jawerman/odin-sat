@@ -21,7 +21,7 @@ main :: proc() {
 	rl.InitWindow(SCREEN_WIDTH.x, SCREEN_WIDTH.y, "SAT test")
 	defer rl.CloseWindow()
 
-	pentagon_points := create_ngon(5, 100)
+	pentagon_points := create_regular_ngon(5, 100)
 	defer delete(pentagon_points)
 	pentagon: Shape_Instance = {
 		position = {100, 100},
@@ -30,7 +30,7 @@ main :: proc() {
 		rotation = 0,
 	}
 
-	triangle_points := create_ngon(3, 80)
+	triangle_points := create_regular_ngon(3, 80)
 	defer delete(triangle_points)
 	triangle: Shape_Instance = {
 		position = {400, 400},
@@ -39,7 +39,7 @@ main :: proc() {
 		rotation = 0,
 	}
 
-	square_points := create_ngon(4, 90)
+	square_points := create_regular_ngon(4, 90)
 	defer delete(square_points)
 	square: Shape_Instance = {
 		position = {600, 100},
@@ -60,15 +60,22 @@ main :: proc() {
 		}
 	}
 
+	shape_selected: int = 0
 
 	for !rl.WindowShouldClose() {
 		free_all(context.temp_allocator)
 		dt := rl.GetFrameTime()
 
-		first_shape := &shapes[0]
-		first_shape.position += linalg.normalize0(get_input_movement()) * dt * MOVE_SPEED
-		first_shape.scale += get_input_scale() * dt * SCALE_SPEED
-		first_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
+		new_shape_selected := get_selected_shape()
+
+		if new_shape_selected >= 0 {
+			shape_selected = new_shape_selected
+		}
+
+		selected_shape := &shapes[shape_selected]
+		selected_shape.position += linalg.normalize0(get_input_movement()) * dt * MOVE_SPEED
+		selected_shape.scale += get_input_scale() * dt * SCALE_SPEED
+		selected_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
 
 		for &shape, index in shapes {
 			apply_transform_to_shape(
@@ -84,10 +91,16 @@ main :: proc() {
 
 				normal, depth, collide := test_shapes_overlap_sat_resolve(shape, other_shape)
 				if collide {
-					displacement := normal * depth
-					shapes[other_index].position += displacement
+					displacement_half := normal * (depth / 2)
+
+					shapes[other_index].position += displacement_half
 					for &point in other_shape {
-						point += displacement
+						point += displacement_half
+					}
+
+					shapes[index].position -= displacement_half
+					for &point in shape {
+						point -= displacement_half
 					}
 				}
 			}
@@ -115,6 +128,19 @@ main :: proc() {
 		}
 	}
 
+}
+
+get_selected_shape :: proc() -> int {
+	if rl.IsKeyPressed(.ONE) {
+		return 0
+	}
+	if rl.IsKeyPressed(.TWO) {
+		return 1
+	}
+	if rl.IsKeyDown(.THREE) {
+		return 2
+	}
+	return -1
 }
 
 get_input_movement :: proc() -> (move_inc: [2]f32) {
