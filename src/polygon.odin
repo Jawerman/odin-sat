@@ -56,35 +56,27 @@ draw_shape_points :: proc(shape: Shape, color: rl.Color) {
 	}
 }
 
-test_shapes_overlap_sat :: proc(p1: Shape, p2: Shape) -> bool {
-	p1 := p1
-	p2 := p2
+test_shapes_overlap_sat :: proc(s1: Shape, s2: Shape) -> bool {
+	for &point_a, index in s1 {
+		point_b := s1[(index + 1) % len(s1)]
+		edge := point_b - point_a
 
-	for shape_index in 0 ..= 1 {
-		shape1 := shape_index == 0 ? &p1 : &p2
-		shape2 := shape_index == 0 ? &p2 : &p1
+		axis: [2]f32 = [2]f32{-edge.y, edge.x}
+		min_s1, max_s1 := get_projection_min_max(s1, axis)
+		min_s2, max_s2 := get_projection_min_max(s2, axis)
 
-		for &point_a, index in shape1 {
-			point_b := shape1[(index + 1) % len(shape1)]
-			vector := point_b - point_a
-			axis: [2]f32 = {-vector.y, vector.x}
+		if min_s1 >= max_s2 || max_s1 < min_s2 do return false
+	}
 
-			min_r1, max_r1 := max(f32), min(f32)
-			for &projected_point in shape1 {
-				projection := linalg.vector_dot(projected_point, axis)
-				min_r1 = min(min_r1, projection)
-				max_r1 = max(max_r1, projection)
-			}
+	for &point_a, index in s2 {
+		point_b := s2[(index + 1) % len(s2)]
+		edge := point_b - point_a
 
-			min_r2, max_r2 := max(f32), min(f32)
-			for &projected_point in shape2 {
-				projection := linalg.vector_dot(projected_point, axis)
-				min_r2 = min(min_r2, projection)
-				max_r2 = max(max_r2, projection)
-			}
+		axis: [2]f32 = [2]f32{-edge.y, edge.x}
+		min_s1, max_s1 := get_projection_min_max(s1, axis)
+		min_s2, max_s2 := get_projection_min_max(s2, axis)
 
-			if min_r1 >= max_r2 || max_r1 < min_r2 do return false
-		}
+		if min_s1 >= max_s2 || max_s1 < min_s2 do return false
 	}
 
 	return true
