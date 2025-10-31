@@ -24,6 +24,21 @@ Shape_Instance :: struct {
 	using transform_description: Transform_Description,
 }
 
+Shape_Edges_Iterator :: struct {
+	index: int,
+	shape: ^Shape,
+}
+
+get_next_edge :: proc(iterator: ^Shape_Edges_Iterator) -> (edge: [2]f32, has_more: bool) {
+	if (iterator.index >= len(iterator.shape)) {
+		return
+	}
+	point_a := iterator.shape[iterator.index]
+	point_b := iterator.shape[(iterator.index + 1) % len(iterator.shape)]
+	return point_b - point_a, true
+}
+
+
 draw_shape :: proc(
 	shape: Shape,
 	color: rl.Color,
@@ -57,28 +72,20 @@ draw_shape_points :: proc(shape: Shape, color: rl.Color) {
 }
 
 test_shapes_overlap_sat :: proc(s1: Shape, s2: Shape) -> bool {
-	for &point_a, index in s1 {
-		point_b := s1[(index + 1) % len(s1)]
-		edge := point_b - point_a
+	tested_shapes := [2]Shape{s1, s2}
 
-		axis: [2]f32 = [2]f32{-edge.y, edge.x}
-		min_s1, max_s1 := get_projection_min_max(s1, axis)
-		min_s2, max_s2 := get_projection_min_max(s2, axis)
+	for &tested_shape in tested_shapes {
+		for &point_a, index in tested_shape {
+			point_b := tested_shape[(index + 1) % len(tested_shape)]
+			edge := point_b - point_a
 
-		if min_s1 >= max_s2 || max_s1 < min_s2 do return false
+			axis: [2]f32 = [2]f32{-edge.y, edge.x}
+			min_s1, max_s1 := get_projection_min_max(s1, axis)
+			min_s2, max_s2 := get_projection_min_max(s2, axis)
+
+			if min_s1 >= max_s2 || max_s1 < min_s2 do return false
+		}
 	}
-
-	for &point_a, index in s2 {
-		point_b := s2[(index + 1) % len(s2)]
-		edge := point_b - point_a
-
-		axis: [2]f32 = [2]f32{-edge.y, edge.x}
-		min_s1, max_s1 := get_projection_min_max(s1, axis)
-		min_s2, max_s2 := get_projection_min_max(s2, axis)
-
-		if min_s1 >= max_s2 || max_s1 < min_s2 do return false
-	}
-
 	return true
 }
 
@@ -93,38 +100,24 @@ test_shapes_overlap_sat_resolve :: proc(
 	overlap = false
 	depth = max(f32)
 
-	for &point_a, index in s1 {
-		point_b := s1[(index + 1) % len(s1)]
-		edge := point_b - point_a
+	tested_shapes := [2]Shape{s1, s2}
+	for &tested_shape in tested_shapes {
+		for &point_a, index in tested_shape {
+			point_b := tested_shape[(index + 1) % len(tested_shape)]
+			edge := point_b - point_a
 
-		axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
-		min_depth, overlap := get_shapes_proyection_separation(s1, s2, axis)
-		if !overlap do return
+			axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
+			min_depth, overlap := get_shapes_proyection_separation(s1, s2, axis)
+			if !overlap do return
 
-		min_depth_abs := abs(min_depth)
+			min_depth_abs := abs(min_depth)
 
-		if min_depth_abs < depth {
-			depth = min_depth_abs
-			normal = min_depth < 0 ? -axis : axis
+			if min_depth_abs < depth {
+				depth = min_depth_abs
+				normal = min_depth < 0 ? -axis : axis
+			}
 		}
 	}
-
-	for &point_a, index in s2 {
-		point_b := s2[(index + 1) % len(s2)]
-		edge := point_b - point_a
-
-		axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
-		min_depth, overlap := get_shapes_proyection_separation(s1, s2, axis)
-		if !overlap do return
-
-		min_depth_abs := abs(min_depth)
-
-		if min_depth_abs < depth {
-			depth = min_depth_abs
-			normal = min_depth < 0 ? -axis : axis
-		}
-	}
-
 	return normal, depth, true
 }
 
