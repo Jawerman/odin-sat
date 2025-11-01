@@ -255,7 +255,7 @@ get_polygon_circle_proyection_separation :: proc(
 	min_p, max_p := get_polygon_projection_min_max(p, axis)
 	min_c, max_c := get_circle_projection_min_max(c, axis)
 
-	return get_min_projection_separation(min_p, max_c, min_p, max_c)
+	return get_min_projection_separation(min_p, max_p, min_c, max_c)
 }
 
 get_min_projection_separation :: proc(min1, max1, min2, max2: f32) -> (depth: f32, overlap: bool) {

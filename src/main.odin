@@ -111,34 +111,18 @@ main :: proc() {
 			}
 		}
 
-		// for &shape, index in transformed_shapes {
-		// 	normal, depth, collide := resolve_polygon_circle_overlap_sat(shape, circle)
-		// 	if collide {
-		// 		displacement_half := normal * (depth / 2)
-		//
-		// 		shapes[index].position -= displacement_half
-		// 		for &point in shape {
-		// 			point -= displacement_half
-		// 		}
-		// 		circle.center += displacement_half
-		// 	}
-		// }
+		for &shape, index in transformed_shapes {
+			normal, depth, collide := resolve_polygon_circle_overlap_sat(shape, circle)
+			if collide {
+				displacement_half := normal * (depth / 2)
 
-		// {
-		// 	normal, depth, collide := resolve_polygon_circle_overlap_sat(
-		// 		transformed_shapes[0],
-		// 		circle,
-		// 	)
-		// 	if collide {
-		// 		displacement_half := normal * (depth / 2)
-		//
-		// 		shapes[0].position -= displacement_half
-		// 		for &point in transformed_shapes[0] {
-		// 			point -= displacement_half
-		// 		}
-		// 		circle.center += displacement_half
-		// 	}
-		// }
+				shapes[index].position -= displacement_half
+				for &point in shape {
+					point -= displacement_half
+				}
+				circle.center += displacement_half
+			}
+		}
 
 		{
 			rl.BeginDrawing()
