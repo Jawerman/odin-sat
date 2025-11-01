@@ -90,40 +90,40 @@ main :: proc() {
 			)
 		}
 
-		// for &shape, index in transformed_shapes {
-		// 	for &other_shape, other_index in transformed_shapes {
-		// 		if index == other_index do continue
-		//
-		// 		normal, depth, collide := resolve_polygons_overlap_sat(shape, other_shape)
-		// 		if collide {
-		// 			displacement_half := normal * (depth / 2)
-		//
-		// 			shapes[other_index].position += displacement_half
-		// 			for &point in other_shape {
-		// 				point += displacement_half
-		// 			}
-		//
-		// 			shapes[index].position -= displacement_half
-		// 			for &point in shape {
-		// 				point -= displacement_half
-		// 			}
-		// 		}
-		// 	}
-		// }
-		//
-		// for &shape, index in transformed_shapes {
-		// 	normal, depth, collide := resolve_polygon_circle_overlap_sat(shape, circle)
-		// 	if collide {
-		// 		displacement_half := normal * (depth / 2)
-		//
-		// 		shapes[index].position -= displacement_half
-		// 		for &point in shape {
-		// 			point -= displacement_half
-		// 		}
-		// 		circle.center += displacement_half
-		// 	}
-		// }
-		//
+		for &shape, index in transformed_shapes {
+			for &other_shape, other_index in transformed_shapes {
+				if index == other_index do continue
+
+				normal, depth, collide := resolve_polygons_overlap_sat(shape, other_shape)
+				if collide {
+					displacement_half := normal * (depth / 2)
+
+					shapes[other_index].position += displacement_half
+					for &point in other_shape {
+						point += displacement_half
+					}
+
+					shapes[index].position -= displacement_half
+					for &point in shape {
+						point -= displacement_half
+					}
+				}
+			}
+		}
+
+		for &shape, index in transformed_shapes {
+			normal, depth, collide := resolve_polygon_circle_overlap_sat(shape, circle)
+			if collide {
+				displacement_half := normal * (depth / 2)
+
+				shapes[index].position -= displacement_half
+				for &point in shape {
+					point -= displacement_half
+				}
+				circle.center += displacement_half
+			}
+		}
+
 		{
 			rl.BeginDrawing()
 			defer rl.EndDrawing()
