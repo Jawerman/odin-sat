@@ -20,34 +20,19 @@ Transform_Description :: struct {
 }
 
 Shape_Instance :: struct {
-	points:                      Shape,
+	points:                      []Point,
 	using transform_description: Transform_Description,
 }
 
-Shape_Edges_Iterator :: struct {
-	index: int,
-	shape: ^Shape,
-}
-
-get_next_edge :: proc(iterator: ^Shape_Edges_Iterator) -> (edge: [2]f32, has_more: bool) {
-	if (iterator.index >= len(iterator.shape)) {
-		return
-	}
-	point_a := iterator.shape[iterator.index]
-	point_b := iterator.shape[(iterator.index + 1) % len(iterator.shape)]
-	return point_b - point_a, true
-}
-
-
 draw_shape :: proc(
-	shape: Shape,
+	points: []Point,
 	color: rl.Color,
 	transform: matrix[3, 3]f32 = linalg.MATRIX3F32_IDENTITY,
 ) {
-	if len(shape) == 0 do return
+	if len(points) == 0 do return
 
-	for &point, index in shape {
-		end_point := &shape[(index + 1) % len(shape)]
+	for &point, index in points {
+		end_point := &points[(index + 1) % len(points)]
 
 		transformed_point := linalg.matrix_mul_vector(transform, [3]f32{point.x, point.y, 1})
 		transformed_end_point := linalg.matrix_mul_vector(
@@ -60,38 +45,38 @@ draw_shape :: proc(
 	}
 }
 
-draw_shape_points :: proc(shape: Shape, color: rl.Color) {
-	if len(shape) == 0 do return
+draw_shape_points :: proc(points: []Point, color: rl.Color) {
+	if len(points) == 0 do return
 
-	for &point, index in shape {
-		end_point := shape[(index + 1) % len(shape)]
+	for &point, index in points {
+		end_point := points[(index + 1) % len(points)]
 
 		rl.DrawCircleV(point, 3, color)
 		rl.DrawLineV(point, end_point, color)
 	}
 }
 
-test_shapes_overlap_sat :: proc(s1: Shape, s2: Shape) -> bool {
-	tested_shapes := [2]Shape{s1, s2}
+test_polygons_overlap_sat :: proc(p1: []Point, p2: []Point) -> bool {
+	tested_polygons := [2][]Point{p1, p2}
 
-	for &tested_shape in tested_shapes {
-		for &point_a, index in tested_shape {
-			point_b := tested_shape[(index + 1) % len(tested_shape)]
+	for &tested_polygon in tested_polygons {
+		for &point_a, index in tested_polygon {
+			point_b := tested_polygon[(index + 1) % len(tested_polygon)]
 			edge := point_b - point_a
 
 			axis: [2]f32 = [2]f32{-edge.y, edge.x}
-			min_s1, max_s1 := get_projection_min_max(s1, axis)
-			min_s2, max_s2 := get_projection_min_max(s2, axis)
+			min_p1, max_p1 := get_projection_min_max(p1, axis)
+			min_p2, max_p2 := get_projection_min_max(p2, axis)
 
-			if min_s1 >= max_s2 || max_s1 < min_s2 do return false
+			if min_p1 >= max_p2 || max_p1 < min_p2 do return false
 		}
 	}
 	return true
 }
 
-test_shapes_overlap_sat_resolve :: proc(
-	s1: Shape,
-	s2: Shape,
+test_polygons_overlap_sat_resolve :: proc(
+	p1: []Point,
+	p2: []Point,
 ) -> (
 	normal: [2]f32,
 	depth: f32,
@@ -100,14 +85,14 @@ test_shapes_overlap_sat_resolve :: proc(
 	overlap = false
 	depth = max(f32)
 
-	tested_shapes := [2]Shape{s1, s2}
-	for &tested_shape in tested_shapes {
-		for &point_a, index in tested_shape {
-			point_b := tested_shape[(index + 1) % len(tested_shape)]
+	tested_polygons := [2][]Point{p1, p2}
+	for &tested_polygon in tested_polygons {
+		for &point_a, index in tested_polygon {
+			point_b := tested_polygon[(index + 1) % len(tested_polygon)]
 			edge := point_b - point_a
 
 			axis: [2]f32 = linalg.normalize0([2]f32{-edge.y, edge.x})
-			min_depth, overlap := get_shapes_proyection_separation(s1, s2, axis)
+			min_depth, overlap := get_polygons_proyection_separation(p1, p2, axis)
 			if !overlap do return
 
 			min_depth_abs := abs(min_depth)
@@ -121,9 +106,9 @@ test_shapes_overlap_sat_resolve :: proc(
 	return normal, depth, true
 }
 
-get_shapes_proyection_separation :: proc(
-	s1: Shape,
-	s2: Shape,
+get_polygons_proyection_separation :: proc(
+	p1: []Point,
+	p2: []Point,
 	axis: [2]f32,
 ) -> (
 	depth: f32,
@@ -131,20 +116,20 @@ get_shapes_proyection_separation :: proc(
 ) {
 	overlap = false
 
-	min_s1, max_s1 := get_projection_min_max(s1, axis)
-	min_s2, max_s2 := get_projection_min_max(s2, axis)
+	min_p1, max_p1 := get_projection_min_max(p1, axis)
+	min_p2, max_p2 := get_projection_min_max(p2, axis)
 
-	depth_side1 := max_s1 - min_s2
-	depth_side2 := min_s1 - max_s2
+	depth_side1 := max_p1 - min_p2
+	depth_side2 := min_p1 - max_p2
 
 	if depth_side1 * depth_side2 >= 0 do return
 
 	return abs(depth_side1) < abs(depth_side2) ? depth_side1 : depth_side2, true
 }
 
-get_projection_min_max :: proc(shape: Shape, axis: [2]f32) -> (min_p: f32, max_p: f32) {
+get_projection_min_max :: proc(polygon: []Point, axis: [2]f32) -> (min_p: f32, max_p: f32) {
 	min_p, max_p = max(f32), min(f32)
-	for &projected_point in shape {
+	for &projected_point in polygon {
 		projection := linalg.vector_dot(projected_point, axis)
 		min_p = min(min_p, projection)
 		max_p = max(max_p, projection)
@@ -160,27 +145,27 @@ get_transform_matrix :: proc(transform_description: Transform_Description) -> li
 	return translate * rotate * scale
 }
 
-apply_transform_to_shape :: proc(
-	shape: Shape,
-	transformed_shape: Shape,
+apply_transform_to_polygon :: proc(
+	polygon: []Point,
+	transformed_polygon: []Point,
 	transform: linalg.Matrix3f32,
 ) {
-	for &point, index in shape {
-		transformed_shape[index] =
+	for &point, index in polygon {
+		transformed_polygon[index] =
 			linalg.matrix_mul_vector(transform, [3]f32{point.x, point.y, 1}).xy
 	}
 }
 
-draw_shape_instance :: proc(entity: Shape_Instance, color: rl.Color = rl.WHITE) {
+draw_shape_instance :: proc(shape_instance: Shape_Instance, color: rl.Color = rl.WHITE) {
 	draw_shape(
-		entity.points,
+		shape_instance.points,
 		color,
-		transform = get_transform_matrix(entity.transform_description),
+		transform = get_transform_matrix(shape_instance.transform_description),
 	)
 }
 
 
-create_regular_ngon :: proc(num_vertices: int, radius: f32) -> Shape {
+create_regular_ngon :: proc(num_vertices: int, radius: f32) -> []Point {
 	ngon := make([]Point, num_vertices)
 	f_theta := math.PI * 2.0 / f32(num_vertices)
 

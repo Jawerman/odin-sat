@@ -78,7 +78,7 @@ main :: proc() {
 		selected_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
 
 		for &shape, index in shapes {
-			apply_transform_to_shape(
+			apply_transform_to_polygon(
 				shape.points,
 				transformed_shapes[index],
 				get_transform_matrix(shape.transform_description),
@@ -89,7 +89,7 @@ main :: proc() {
 			for &other_shape, other_index in transformed_shapes {
 				if index == other_index do continue
 
-				normal, depth, collide := test_shapes_overlap_sat_resolve(shape, other_shape)
+				normal, depth, collide := test_polygons_overlap_sat_resolve(shape, other_shape)
 				if collide {
 					displacement_half := normal * (depth / 2)
 
@@ -116,7 +116,7 @@ main :: proc() {
 
 				for &other_shape, other_index in transformed_shapes {
 					if index == other_index do continue
-					if test_shapes_overlap_sat(shape, other_shape) {
+					if test_polygons_overlap_sat(shape, other_shape) {
 						is_colliding = true
 						break
 					}
