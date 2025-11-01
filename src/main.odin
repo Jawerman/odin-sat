@@ -23,7 +23,7 @@ main :: proc() {
 
 	pentagon_points := create_regular_ngon(5, 100)
 	defer delete(pentagon_points)
-	pentagon: Shape_Instance = {
+	pentagon: Polygon_Instance = {
 		position = {100, 100},
 		scale    = {1, 1},
 		points   = pentagon_points,
@@ -32,7 +32,7 @@ main :: proc() {
 
 	triangle_points := create_regular_ngon(3, 80)
 	defer delete(triangle_points)
-	triangle: Shape_Instance = {
+	triangle: Polygon_Instance = {
 		position = {400, 400},
 		scale    = {1, 1},
 		points   = triangle_points,
@@ -41,86 +41,129 @@ main :: proc() {
 
 	square_points := create_regular_ngon(4, 90)
 	defer delete(square_points)
-	square: Shape_Instance = {
+	square: Polygon_Instance = {
 		position = {600, 100},
 		scale    = {1, 1},
 		points   = square_points,
 		rotation = 0,
 	}
 
-	shapes: []Shape_Instance = {pentagon, triangle, square}
-	transformed_shapes: [][]Point = {
+	circle1: Circle_Instance = {
+		center = {200, 100},
+		radius = 100,
+		scale  = 1.0,
+	}
+
+	circle2: Circle_Instance = {
+		center = {500, 100},
+		radius = 50,
+		scale  = 1.0,
+	}
+
+	shapes: []Shape_Instance = {pentagon, triangle, square, circle1, circle2}
+	transformed_shapes: []Shape = {
 		make([]Point, len(pentagon.points)),
 		make([]Point, len(triangle.points)),
 		make([]Point, len(square.points)),
+		circle1.circle,
+		circle2.circle,
 	}
 	defer {
 		for &shape in transformed_shapes {
-			delete(shape)
+			if type_of(shape) == []Point {
+				delete(shape.([]Point))
+			}
 		}
 	}
 
-	circle: Circle = {
-		center = {400, 300},
-		radius = 50,
-	}
-
-	shape_selected: int = 0
+	shape_selected_index: int = 0
 
 	for !rl.WindowShouldClose() {
 		free_all(context.temp_allocator)
 		dt := rl.GetFrameTime()
 
-		new_shape_selected := get_selected_shape()
+		shape_selected_index =
+			(shape_selected_index + get_selected_shape_index_inc() + len(shapes)) % len(shapes)
 
-		if new_shape_selected >= 0 {
-			shape_selected = new_shape_selected
+		selected_shape := &shapes[shape_selected_index]
+		position_inc := get_input_movement() * MOVE_SPEED * dt
+		scale_inc := get_input_scale() * SCALE_SPEED * dt
+		rotation_inc := get_input_rotate() * ROTATE_SPEED * dt
+
+		switch &s in selected_shape {
+		case Polygon_Instance:
+			{
+				s.position += position_inc
+				s.scale += scale_inc
+				s.rotation += rotation_inc
+			}
+		case Circle_Instance:
+			s.position += position_inc
+			s.scale += scale_inc.x
 		}
 
-		selected_shape := &shapes[shape_selected]
-		selected_shape.position += linalg.normalize0(get_input_movement()) * dt * MOVE_SPEED
-		selected_shape.scale += get_input_scale() * dt * SCALE_SPEED
-		selected_shape.rotation += get_input_rotate() * dt * ROTATE_SPEED
-
 		for &shape, index in shapes {
-			apply_transform_to_polygon(
-				shape.points,
-				transformed_shapes[index],
-				get_transform_matrix(shape.transform_description),
-			)
+			switch &s in shape {
+			case Polygon_Instance:
+				{
+					apply_transform_to_polygon(
+						s.points,
+						transformed_shapes[index].([]Point),
+						get_transform_matrix(s.transform_description),
+					)
+				}
+			case Circle_Instance:
+				circle := &transformed_shapes[index].(Circle)
+				circle.center = s.center + s.position
+				circle.radius = s.radius * s.scale
+			}
 		}
 
 		for &shape, index in transformed_shapes {
 			for &other_shape, other_index in transformed_shapes {
 				if index == other_index do continue
 
-				normal, depth, collide := resolve_polygons_overlap_sat(shape, other_shape)
+				normal, depth, collide := resolve_collision(shape, other_shape)
+
 				if collide {
 					displacement_half := normal * (depth / 2)
 
-					shapes[other_index].position += displacement_half
-					for &point in other_shape {
-						point += displacement_half
+					switch &s in other_shape {
+					case []Point:
+						{
+							other_shape_ref := &shapes[other_index].(Polygon_Instance)
+							other_shape_ref.position += displacement_half
+							for &point in s {
+								point += displacement_half
+							}
+
+						}
+					case Circle:
+						{
+							other_shape_ref := &shapes[other_index].(Circle_Instance)
+							other_shape_ref.center += displacement_half
+							s.center += displacement_half
+						}
 					}
 
-					shapes[index].position -= displacement_half
-					for &point in shape {
-						point -= displacement_half
+					switch &s in shape {
+					case []Point:
+						{
+							shape_ref := &shapes[index].(Polygon_Instance)
+							shape_ref.position -= displacement_half
+							for &point in s {
+								point -= displacement_half
+							}
+
+						}
+					case Circle:
+						{
+							shape_ref := &shapes[index].(Circle_Instance)
+							shape_ref.center -= displacement_half
+							s.center -= displacement_half
+						}
 					}
 				}
-			}
-		}
-
-		for &shape, index in transformed_shapes {
-			normal, depth, collide := resolve_polygon_circle_overlap_sat(shape, circle)
-			if collide {
-				displacement_half := normal * (depth / 2)
-
-				shapes[index].position -= displacement_half
-				for &point in shape {
-					point -= displacement_half
-				}
-				circle.center += displacement_half
 			}
 		}
 
@@ -129,43 +172,48 @@ main :: proc() {
 			defer rl.EndDrawing()
 			rl.ClearBackground(rl.BLACK)
 
-			is_circle_colliding := false
 			for &shape, index in transformed_shapes {
-				is_colliding := false
+				color := index == shape_selected_index ? rl.BLUE : rl.WHITE
 
-				for &other_shape, other_index in transformed_shapes {
-					if index == other_index do continue
-					if test_polygons_overlap_sat(shape, other_shape) {
-						is_colliding = true
-						break
-					}
+				switch &s in shape {
+				case []Point:
+					draw_polygon_points(s, color)
+				case Circle:
+					rl.DrawCircleLinesV(s.center, s.radius, color)
 				}
-
-				shape_collides_circle := test_polygon_circle_overlap_sat(shape, circle)
-				is_circle_colliding = is_circle_colliding || shape_collides_circle
-
-				color := is_colliding || shape_collides_circle ? rl.RED : rl.WHITE
-				draw_polygon_points(shape, color)
 			}
-
-			color := is_circle_colliding ? rl.RED : rl.WHITE
-			rl.DrawCircleLinesV(circle.center, circle.radius, color)
 		}
 	}
 
 }
 
-get_selected_shape :: proc() -> int {
+resolve_collision :: proc(s1, s2: Shape) -> (normal: [2]f32, depth: f32, overlap: bool) {
+	overlap = false
+	_, s1_poly := s1.([]Point)
+	_, s2_poly := s2.([]Point)
+
+	if s1_poly && s2_poly {
+		return resolve_polygons_overlap_sat(s1.([]Point), s2.([]Point))
+	}
+	if s1_poly && !s2_poly {
+		return resolve_polygon_circle_overlap_sat(s1.([]Point), s2.(Circle))
+	}
+	if !s1_poly && s2_poly {
+		return resolve_polygon_circle_overlap_sat(s2.([]Point), s1.(Circle))
+	}
+	return
+}
+
+
+get_selected_shape_index_inc :: proc() -> int {
 	if rl.IsKeyPressed(.ONE) {
-		return 0
+		return -1
 	}
 	if rl.IsKeyPressed(.TWO) {
 		return 1
 	}
-	if rl.IsKeyDown(.THREE) {
-		return 2
-	}
-	return -1
+	return 0
+
 }
 
 get_input_movement :: proc() -> (move_inc: [2]f32) {

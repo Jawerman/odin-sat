@@ -1,6 +1,6 @@
 package sat
-import rl "vendor:raylib"
 import "core:math/linalg"
+import rl "vendor:raylib"
 
 draw_polygon :: proc(
 	points: []Point,
@@ -34,7 +34,7 @@ draw_polygon_points :: proc(points: []Point, color: rl.Color) {
 	}
 }
 
-draw_shape_instance :: proc(shape_instance: Shape_Instance, color: rl.Color = rl.WHITE) {
+draw_shape_instance :: proc(shape_instance: Polygon_Instance, color: rl.Color = rl.WHITE) {
 	draw_polygon(
 		shape_instance.points,
 		color,

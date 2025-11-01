@@ -12,18 +12,40 @@ Circle :: struct {
 
 IDENTITY_MATRIX: matrix[2, 2]f32 = {0, 0, 0, 0}
 
-Transform_Description :: struct {
+Polygon_Transform_Description :: struct {
 	position: [2]f32,
 	rotation: f32,
 	scale:    [2]f32,
 }
 
-Shape_Instance :: struct {
-	points:                      []Point,
-	using transform_description: Transform_Description,
+Circle_Transform_Description :: struct {
+	position: [2]f32,
+	scale:    f32,
 }
 
-get_transform_matrix :: proc(transform_description: Transform_Description) -> linalg.Matrix3f32 {
+Polygon_Instance :: struct {
+	points:                      []Point,
+	using transform_description: Polygon_Transform_Description,
+}
+
+Circle_Instance :: struct {
+	using circle:                Circle,
+	using transform_description: Circle_Transform_Description,
+}
+
+Shape_Instance :: union #no_nil {
+	Polygon_Instance,
+	Circle_Instance,
+}
+
+Shape :: union #no_nil {
+	[]Point,
+	Circle,
+}
+
+get_transform_matrix :: proc(
+	transform_description: Polygon_Transform_Description,
+) -> linalg.Matrix3f32 {
 	rotate := matrix3_rotate_f32(linalg.to_radians(f32(transform_description.rotation)))
 	translate := matrix3_translate_f32(transform_description.position)
 	scale := matrix3_scale_f32(transform_description.scale)

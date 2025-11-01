@@ -6,7 +6,7 @@ import "core:math"
 import "core:math/linalg"
 
 
-test_polygons_overlap_sat :: proc(p1: []Point, p2: []Point) -> bool {
+test_polygons_overlap_sat :: proc(p1, p2: []Point) -> bool {
 	tested_polygons := [2][]Point{p1, p2}
 
 	for &tested_polygon in tested_polygons {
@@ -39,7 +39,13 @@ test_polygon_circle_overlap_sat :: proc(p: []Point, c: Circle) -> bool {
 }
 
 
-// TODO: Implement circle vs circle overlap and resolution (easy)
+test_circles_operlap :: proc(c1, c2: Circle) -> bool {
+	centers_distance := c2.center - c1.center
+	distance2 := linalg.vector_length2(centers_distance)
+	radius_sum := c1.radius + c2.radius
+
+	return distance2 < (radius_sum * radius_sum)
+}
 
 resolve_polygons_overlap_sat :: proc(
 	p1: []Point,
@@ -116,6 +122,8 @@ resolve_polygon_circle_overlap_sat :: proc(
 	}
 	return normal, depth, true
 }
+
+// TODO: resolve circle vs circle
 
 test_axis_polygons_overlap :: proc(p1: []Point, p2: []Point, axis: [2]f32) -> bool {
 	min_p1, max_p1 := get_polygon_projection_min_max(p1, axis)
