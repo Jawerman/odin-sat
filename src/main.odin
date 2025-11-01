@@ -49,7 +49,7 @@ main :: proc() {
 	}
 
 	shapes: []Shape_Instance = {pentagon, triangle, square}
-	transformed_shapes: []Shape = {
+	transformed_shapes: [][]Point = {
 		make([]Point, len(pentagon.points)),
 		make([]Point, len(triangle.points)),
 		make([]Point, len(square.points)),
@@ -58,6 +58,11 @@ main :: proc() {
 		for &shape in transformed_shapes {
 			delete(shape)
 		}
+	}
+
+	circle: Circle = {
+		center = {400, 300},
+		radius = 50,
 	}
 
 	shape_selected: int = 0
@@ -89,7 +94,7 @@ main :: proc() {
 			for &other_shape, other_index in transformed_shapes {
 				if index == other_index do continue
 
-				normal, depth, collide := test_polygons_overlap_sat_resolve(shape, other_shape)
+				normal, depth, collide := resolve_polygons_overlap_sat(shape, other_shape)
 				if collide {
 					displacement_half := normal * (depth / 2)
 
@@ -106,11 +111,41 @@ main :: proc() {
 			}
 		}
 
+		// for &shape, index in transformed_shapes {
+		// 	normal, depth, collide := resolve_polygon_circle_overlap_sat(shape, circle)
+		// 	if collide {
+		// 		displacement_half := normal * (depth / 2)
+		//
+		// 		shapes[index].position -= displacement_half
+		// 		for &point in shape {
+		// 			point -= displacement_half
+		// 		}
+		// 		circle.center += displacement_half
+		// 	}
+		// }
+
+		// {
+		// 	normal, depth, collide := resolve_polygon_circle_overlap_sat(
+		// 		transformed_shapes[0],
+		// 		circle,
+		// 	)
+		// 	if collide {
+		// 		displacement_half := normal * (depth / 2)
+		//
+		// 		shapes[0].position -= displacement_half
+		// 		for &point in transformed_shapes[0] {
+		// 			point -= displacement_half
+		// 		}
+		// 		circle.center += displacement_half
+		// 	}
+		// }
+
 		{
 			rl.BeginDrawing()
 			defer rl.EndDrawing()
 			rl.ClearBackground(rl.BLACK)
 
+			is_circle_colliding := false
 			for &shape, index in transformed_shapes {
 				is_colliding := false
 
@@ -122,9 +157,15 @@ main :: proc() {
 					}
 				}
 
-				color := is_colliding ? rl.RED : rl.WHITE
+				shape_collides_circle := test_polygon_circle_overlap_sat(shape, circle)
+				is_circle_colliding = is_circle_colliding || shape_collides_circle
+
+				color := is_colliding || shape_collides_circle ? rl.RED : rl.WHITE
 				draw_shape_points(shape, color)
 			}
+
+			color := is_circle_colliding ? rl.RED : rl.WHITE
+			rl.DrawCircleLinesV(circle.center, circle.radius, color)
 		}
 	}
 
