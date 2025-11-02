@@ -123,6 +123,39 @@ resolve_polygon_circle_overlap_sat :: proc(
 	return normal, depth, true
 }
 
+resolve_circles_overlap_sat :: proc(
+	c1, c2: Circle,
+) -> (
+	normal: [2]f32,
+	depth: f32,
+	overlap: bool,
+) {
+	centers_distance := c2.center - c1.center
+	axis := linalg.normalize0(centers_distance)
+
+	min_depth: f32
+	min_depth, overlap = get_circles_proyection_separation(c1, c2, axis)
+	if !overlap do return
+
+	depth = abs(min_depth)
+	normal = min_depth < 0 ? -axis : axis
+
+	return normal, depth, true
+}
+
+get_circles_proyection_separation :: proc(
+	c1, c2: Circle,
+	axis: [2]f32,
+) -> (
+	depth: f32,
+	overlap: bool,
+) {
+	min_c1, max_c1 := get_circle_projection_min_max(c1, axis)
+	min_c2, max_c2 := get_circle_projection_min_max(c2, axis)
+
+	return get_min_projection_separation(min_c1, max_c1, min_c2, max_c2)
+}
+
 // TODO: resolve circle vs circle
 
 test_axis_polygons_overlap :: proc(p1: []Point, p2: []Point, axis: [2]f32) -> bool {

@@ -199,7 +199,11 @@ resolve_collision :: proc(s1, s2: Shape) -> (normal: [2]f32, depth: f32, overlap
 		return resolve_polygon_circle_overlap_sat(s1.([]Point), s2.(Circle))
 	}
 	if !s1_poly && s2_poly {
-		return resolve_polygon_circle_overlap_sat(s2.([]Point), s1.(Circle))
+		normal, depth, overlap = resolve_polygon_circle_overlap_sat(s2.([]Point), s1.(Circle))
+		return -normal, depth, overlap
+	}
+	if !s1_poly && !s2_poly {
+		return resolve_circles_overlap_sat(s1.(Circle), s2.(Circle))
 	}
 	return
 }
